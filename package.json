@@ -12,6 +12,7 @@
   "dependencies": {
     "config": "^1.25.1",
     "http-link-header": "^0.8.0",
+    "inquirer": "^3.0.6",
     "lodash": "^4.17.4",
     "request": "^2.81.0",
     "request-promise": "^4.2.0",

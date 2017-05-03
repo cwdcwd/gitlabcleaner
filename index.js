@@ -5,12 +5,14 @@ const config = require('config');
 const logger = require('winston');
 const requestPromise = require('request-promise');
 const LinkHeader = require('http-link-header');
+const inquirer = require('inquirer');
+
+const ui = new inquirer.ui.BottomBar();
 
 const version = 3;
 const perPage = 100;
 const urlBase = `https://gitlab.com/api/v${version}`;
 // /694205/members \.'
-
 
 /**
  * callOut - description
@@ -98,13 +100,53 @@ function getGroups(url, groups, cb) {
   });
 }
 
-getGroups((err, data) => {
-  logger.log('debug', 'callback returned');
-  if (err) {
-    logger.log('debug', err);
-  } else {
-    _.forEach(data, (v, k) => {
-      logger.log('debug', k, v);
-    });
+inquirer.prompt([{
+  type: 'list',
+  name: 'execute',
+  message: 'Execute Group cleanup?',
+  default: 'yes',
+  choices: ['yes', 'no']
+}, {
+  type: 'input',
+  name: 'privateToken',
+  message: 'Gitlab Token?',
+  default: null,
+  when: (answers) => {
+    return (answers.execute === 'yes') && !config.PRIVATE_TOKEN;
   }
+}]).then((startAnswer) => {
+  if ((startAnswer.execute === 'yes') && startAnswer.privateToken) {
+    config.PRIVATE_TOKEN = config.PRIVATE_TOKEN || startAnswer.privateToken;
+
+    return getGroups((err, data) => {
+      logger.log('debug', 'callback returned');
+      if (err) {
+        logger.log('debug', err);
+      } else {
+        console.log(data);
+        _.forEach(data, (v, k) => {
+          inquirer.prompt([{
+            type: 'list',
+            name: 'execute',
+            message: `clean out '${v.name}'?`,
+            default: 'yes',
+            choices: ['yes', 'no']
+          }]).then((groupAnswer) => {
+            if (groupAnswer.execute === 'yes') {
+              logger.log('debug', k, v);
+            } else {
+              logger.log('debug', `ok. skipping grou '${v.name}'`);
+            }
+          });
+        });
+      }
+    });
+  } else if ((startAnswer.execute === 'yes') && !startAnswer.privateToken) {
+    logger.log('error', 'private token required for execution');
+  }
+
+  logger.log('info', 'kthxbai!');
+  return null;
+}).catch((err) => {
+  logger.log('error', err);
 });
