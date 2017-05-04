@@ -89,7 +89,22 @@ function getNextURL(headers) {
 
 
 function removeMember(groupId, memberId, cb) {
+  const obj = {
+    resolveWithFullResponse: true,
+    simple: false,
+    json: true,
+    headers: {'PRIVATE-TOKEN': config.PRIVATE_TOKEN},
+    uri: `${urlBase}/groups/${groupId}/members/${memberId}`,
+    method: 'DELETE'
+  };
 
+  const p = requestPromise(obj);
+  p.then((resp) => {
+    cb(null, resp.body);
+  })
+  .catch((err) => {
+    cb(err);
+  });
 }
 
 /**
@@ -113,8 +128,6 @@ function getMembersForGroup(groupId, cb) {
 /**
  * getGroups - description
  *
- * @param  {type} url description
- * @param  {type} groups description
  * @param  {type} cb callback
  */
 function getGroups(cb) {
@@ -157,7 +170,7 @@ inquirer.prompt([{
               type: 'list',
               name: `execute_${k}`,
               message: `${k}: clean out '${v.name}'?`,
-              default: {name: 'yes', value: v.id},
+              default: {name: 'no', value: null},
               choices: [{name: 'yes', value: v.id}, {name: 'no', value: null}],
               validate: (answer) => {
                 return answer;
@@ -177,10 +190,18 @@ inquirer.prompt([{
                 } else {
                   logger.log('info', `removing members for group: ${groupId}`);
                   _.forEach(members, (member, iM) => {
-                    logger.log('info', `removing member: ${member.username} from group ${groupId}`);
-                    removeMember(groupId, member.id, (removeMemberErr, data) => {
-                      console.log(removeMemberErr, data);
-                    });
+                    if (_.includes(config.WHITELIST_MEMBER, member.username)) {
+                      logger.log('info', `${member.username} is in white list. Skipping.`);
+                    } else {
+                      logger.log('info', `removing member: ${member.username} from group ${groupId}`);
+                      removeMember(groupId, member.id, (removeMemberErr, data) => {
+                        if (removeMemberErr) {
+                          logger.log('error', removeMemberErr);
+                        } else {
+                          logger.log('info', `${member.username} removed from group ${groupId}`);
+                        }
+                      });
+                    }
                   });
                 }
               });
