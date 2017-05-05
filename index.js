@@ -11,15 +11,14 @@ const Rx = require('rx');
 const ui = new inquirer.ui.BottomBar();
 
 const version = 3;
-const perPage = 40;
 const urlBase = `https://gitlab.com/api/v${version}`;
 
 const HTTP_200 = 200;
-const ACCESS_GUEST = 10;
-const ACCESS_REPORTER = 20;
+// const ACCESS_GUEST = 10;
+// const ACCESS_REPORTER = 20;
 const ACCESS_DEVELOPER = 30;
-const ACCESS_MASTER = 40;
-const ACCESS_OWNER = 50;
+// const ACCESS_MASTER = 40;
+// const ACCESS_OWNER = 50;
 
 /**
  * fetchData - description
@@ -88,6 +87,13 @@ function getNextURL(headers) {
 }
 
 
+/**
+ * removeMember - description
+ *
+ * @param  {type} groupId  description
+ * @param  {type} memberId description
+ * @param  {type} cb       description
+ */
 function removeMember(groupId, memberId, cb) {
   const obj = {
     resolveWithFullResponse: true,
@@ -120,7 +126,7 @@ function getMembersForGroup(groupId, cb) {
     }
   };
 
-  const url = `${urlBase}/groups/${groupId}/members?access_level=${ACCESS_DEVELOPER}&per_page=${perPage}`; // CWD-- set the starting url if we're not iterating yet
+  const url = `${urlBase}/groups/${groupId}/members?access_level=${ACCESS_DEVELOPER}&per_page=${config.PER_PAGE}`; // CWD-- set the starting url if we're not iterating yet
 
   fetchData(url, cb);
 }
@@ -137,7 +143,7 @@ function getGroups(cb) {
     }
   };
 
-  const url = `${urlBase}/groups?per_page=${perPage}`; // CWD-- set the starting url if we're not iterating yet
+  const url = `${urlBase}/groups?per_page=${config.PER_PAGE}`; // CWD-- set the starting url if we're not iterating yet
   fetchData(url, cb);
 }
 
