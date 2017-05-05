@@ -161,17 +161,18 @@ inquirer.prompt([{
 
     return getGroups((getGroupsErr, groupData) => {
       logger.log('debug', 'callback returned');
+
       if (getGroupsErr) {
         logger.log('debug', getGroupsErr);
       } else {
-        const observe = Rx.Observable.create((obs) => {
+        const observe = Rx.Observable.create((obs) => { // CWD-- add each group as a question
           _.forEach(groupData, (v, k) => {
             obs.onNext({
               type: 'list',
               name: `execute_${k}`,
               message: `${k}: clean out '${v.name}'?`,
               default: {name: 'no', value: null},
-              choices: [{name: 'yes', value: v.id}, {name: 'no', value: null}],
+              choices: [{name: 'yes', value: v}, {name: 'no', value: null}],
               validate: (answer) => {
                 return answer;
               }
@@ -180,27 +181,34 @@ inquirer.prompt([{
           obs.onCompleted();
         });
 
-        inquirer.prompt(observe).then((answers) => {
-          _.forEach(answers, (groupId) => {
-            if (groupId) {
-              getMembersForGroup(groupId, (getMembersErr, members) => {
-                console.log(getMembersErr, members);
+        inquirer.prompt(observe).then((answers) => { // CWD-- prompt for each group
+          const memberObservable = new Rx.Subject();
+          memberObservable.subscribe((val) => { // CWD-- subscribe to pushes on member
+            const member = val.member;
+            const group = val.group;
+            logger.log('info', `removing member: ${member.username} from group ${group.name}`);
+            removeMember(group.id, member.id, (removeMemberErr, data) => {
+              if (removeMemberErr) {
+                logger.log('error', removeMemberErr);
+              } else {
+                logger.log('info', `${member.username} removed from group ${group.name}`);
+                logger.log('debug', data);
+              }
+            });
+          });
+
+          _.forEach(answers, (group) => { // CWD-- loop the answers
+            if (group) { // CWD-- if value is an object
+              getMembersForGroup(group.id, (getMembersErr, members) => { // CWD-- grab all the members
                 if (getMembersErr) {
                   logger.log('error', getMembersErr);
                 } else {
-                  logger.log('info', `removing members for group: ${groupId}`);
-                  _.forEach(members, (member, iM) => {
-                    if (_.includes(config.WHITELIST_MEMBER, member.username)) {
+                  _.forEach(members, (member) => { // CWD-- loop the members
+                    if (_.includes(config.WHITELIST_MEMBER, member.username)) { // CWD-- skip specific users
                       logger.log('info', `${member.username} is in white list. Skipping.`);
-                    } else {
-                      logger.log('info', `removing member: ${member.username} from group ${groupId}`);
-                      removeMember(groupId, member.id, (removeMemberErr, data) => {
-                        if (removeMemberErr) {
-                          logger.log('error', removeMemberErr);
-                        } else {
-                          logger.log('info', `${member.username} removed from group ${groupId}`);
-                        }
-                      });
+                    } else { // CWD-- add member for removal
+                      logger.log('info', `marking ${member.username} for removal from group: ${group.name}`);
+                      memberObservable.onNext({group, member});
                     }
                   });
                 }
